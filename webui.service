@@ -1,0 +1,12 @@
+[Unit]
+Description=TCP Forwarding Web UI
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /root/webui/app.py
+Restart=always
+User=root
+WorkingDirectory=/root/webui
+
+[Install]
+WantedBy=multi-user.target
