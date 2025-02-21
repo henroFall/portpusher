@@ -1,14 +1,11 @@
 [Unit]
-Description=TCP Port Forwarding Service
+Description=Port Pusher TCP Forwarder
 After=network.target
 
 [Service]
 ExecStart=/root/tcp_forward.sh
 Restart=always
-RestartSec=3
 User=root
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

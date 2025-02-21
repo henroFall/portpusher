@@ -1,22 +1,26 @@
 #!/bin/bash
 
-# Load configuration
-source /root/tcp_forward.conf
+# Define variables (leave paths exactly as they were)
+LISTEN_PORT=12345  # Change this as needed
+TARGET_IP="192.168.1.200"  # Set dynamically by the Web UI
+TARGET_PORT=8080  # Change as needed
 
-# Kill any existing socat instances
-pkill socat
+# Enable IP forwarding (required for transparent proxying)
+echo 1 > /proc/sys/net/ipv4/ip_forward
 
-# Ensure ports are valid
-if [[ -z "$IN_PORT" || -z "$OUT_PORT" || -z "$DEST_HOST" ]]; then
-    echo "Error: Missing configuration variables."
-    exit 1
-fi
+# Clear old iptables rules to prevent duplicates
+iptables -t mangle -F
+iptables -t nat -F
 
-echo "Starting Port Pusher on port $IN_PORT forwarding to $DEST_HOST:$OUT_PORT"
+# Configure TPROXY to preserve the original source IP
+iptables -t mangle -A PREROUTING -p tcp --dport $LISTEN_PORT -j TPROXY --tproxy-mark 1/1 --on-port $LISTEN_PORT
+iptables -t nat -A POSTROUTING -p tcp --dport $TARGET_PORT -j MASQUERADE
 
-# Infinite loop to keep `socat` running
-while true; do
-    socat TCP-LISTEN:$IN_PORT,fork TCP:$DEST_HOST:$OUT_PORT
-    echo "socat crashed or stopped, restarting..."
-    sleep 2  # Short delay to prevent rapid restart loops
-done
+# Ensure marked packets are routed correctly
+ip rule add fwmark 1 lookup 100
+ip route add local 0.0.0.0/0 dev lo table 100
+
+echo "[✔] Transparent Proxying Enabled on Port $LISTEN_PORT"
+
+# Start the TCP forwarder (no path changes)
+python3 tcp_forward.py $LISTEN_PORT $TARGET_IP $TARGET_PORT
